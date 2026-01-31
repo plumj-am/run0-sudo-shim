@@ -151,6 +151,27 @@
               };
             })
             (lib.mkIf config.security.polkit.persistentAuthentication {
+              assertions =
+                let
+                  mkMessage = (
+                    package: minVer: ''
+                      To provide persistent authentication, Polkit requires `pidfd` support when fetching process details from D-Bus, which is only available in `${package}` version ${minVer} or later.
+
+                      Please update the package or switch `services.dbus.implementation` in the configuration.
+                    ''
+                  );
+                in
+                [
+                  (lib.mkIf (config.services.dbus.implementation == "dbus") {
+                    assertion = lib.versionAtLeast config.services.dbus.dbusPackage.version "1.15.7";
+                    message = mkMessage "dbus" "1.15.7";
+                  })
+                  (lib.mkIf (config.services.dbus.implementation == "broker") {
+                    assertion = lib.versionAtLeast config.services.dbus.brokerPackage.version "34";
+                    message = mkMessage "dbus-broker" "34";
+                  })
+                ];
+
               security.polkit.extraConfig = ''
                 polkit.addRule(function(action, subject) {
                   if (action.id == "org.freedesktop.policykit.exec") {
